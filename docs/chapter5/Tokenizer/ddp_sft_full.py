@@ -16,7 +16,6 @@ from k_model import ModelConfig, Transformer
 from dataset import SFTDataset
 
 import swanlab
-from modelscope import snapshot_download
 
 # 忽略警告
 warnings.filterwarnings('ignore')
@@ -153,78 +152,76 @@ def init_model():
 
 
 if __name__ == "__main__":
-    model_dir = snapshot_download('kmno4zx/happy-llm-215M-sft')
+    parser = argparse.ArgumentParser(description="Tiny-LLM Pretraining")
+    parser.add_argument("--out_dir", type=str, default="sft_model_215M", help="输出目录")
+    parser.add_argument("--epochs", type=int, default=1, help="训练轮数")
+    parser.add_argument("--batch_size", type=int, default=64, help="批处理大小")
+    parser.add_argument("--learning_rate", type=float, default=2e-4, help="学习率")
+    parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu", help="使用的设备")
+    parser.add_argument("--dtype", type=str, default="bfloat16", help="数据类型")
+    parser.add_argument("--use_swanlab", action="store_true", help="是否使用SwanLab进行实验跟踪")
+    parser.add_argument("--num_workers", type=int, default=8, help="数据加载的工作进程数")
+    parser.add_argument("--data_path", type=str, default="./BelleGroup_sft.jsonl", help="训练数据路径")
+    parser.add_argument("--accumulation_steps", type=int, default=8, help="梯度累积步数")
+    parser.add_argument("--grad_clip", type=float, default=1.0, help="梯度裁剪阈值")
+    parser.add_argument("--warmup_iters", type=int, default=0, help="预热迭代次数")
+    parser.add_argument("--log_interval", type=int, default=100, help="日志记录间隔")
+    parser.add_argument("--save_interval", type=int, default=1000, help="模型保存间隔")
+    # 添加多卡参数
+    parser.add_argument("--gpus", type=str, default='0,1,2,3,4,5,6,7', help="逗号分隔的GPU ID (例如 '0,1,2')")
 
-    # parser = argparse.ArgumentParser(description="Tiny-LLM Pretraining")
-    # parser.add_argument("--out_dir", type=str, default="sft_model_215M", help="输出目录")
-    # parser.add_argument("--epochs", type=int, default=1, help="训练轮数")
-    # parser.add_argument("--batch_size", type=int, default=64, help="批处理大小")
-    # parser.add_argument("--learning_rate", type=float, default=2e-4, help="学习率")
-    # parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu", help="使用的设备")
-    # parser.add_argument("--dtype", type=str, default="bfloat16", help="数据类型")
-    # parser.add_argument("--use_swanlab", action="store_true", help="是否使用SwanLab进行实验跟踪")
-    # parser.add_argument("--num_workers", type=int, default=8, help="数据加载的工作进程数")
-    # parser.add_argument("--data_path", type=str, default="./BelleGroup_sft.jsonl", help="训练数据路径")
-    # parser.add_argument("--accumulation_steps", type=int, default=8, help="梯度累积步数")
-    # parser.add_argument("--grad_clip", type=float, default=1.0, help="梯度裁剪阈值")
-    # parser.add_argument("--warmup_iters", type=int, default=0, help="预热迭代次数")
-    # parser.add_argument("--log_interval", type=int, default=100, help="日志记录间隔")
-    # parser.add_argument("--save_interval", type=int, default=1000, help="模型保存间隔")
-    # # 添加多卡参数
-    # parser.add_argument("--gpus", type=str, default='0,1,2,3,4,5,6,7', help="逗号分隔的GPU ID (例如 '0,1,2')")
+    args = parser.parse_args()
 
-    # args = parser.parse_args()
+    # 设置可见GPU
+    if args.gpus is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+        # 自动设置主设备为第一个GPU
+        if torch.cuda.is_available():
+            args.device = "cuda:0"
+        else:
+            args.device = "cpu"
 
-    # # 设置可见GPU
-    # if args.gpus is not None:
-    #     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
-    #     # 自动设置主设备为第一个GPU
-    #     if torch.cuda.is_available():
-    #         args.device = "cuda:0"
-    #     else:
-    #         args.device = "cpu"
+    # 初始化swanlab
+    if args.use_swanlab:
+        run = swanlab.init(
+            project="Happy-LLM",
+            experiment_name="SFT-215M",
+            config=args,
+        )
 
-    # # 初始化swanlab
-    # if args.use_swanlab:
-    #     run = swanlab.init(
-    #         project="Happy-LLM",
-    #         experiment_name="SFT-215M",
-    #         config=args,
-    #     )
+    # 模型配置
+    lm_config = ModelConfig(
+        dim=1024,
+        n_layers=18,
+    )
+    max_seq_len = lm_config.max_seq_len
+    args.save_dir = os.path.join(args.out_dir)
+    os.makedirs(args.out_dir, exist_ok=True)
+    torch.manual_seed(42)
+    device_type = "cuda" if "cuda" in args.device else "cpu"
 
-    # # 模型配置
-    # lm_config = ModelConfig(
-    #     dim=1024,
-    #     n_layers=18,
-    # )
-    # max_seq_len = lm_config.max_seq_len
-    # args.save_dir = os.path.join(args.out_dir)
-    # os.makedirs(args.out_dir, exist_ok=True)
-    # torch.manual_seed(42)
-    # device_type = "cuda" if "cuda" in args.device else "cpu"
+    # 上下文管理器
+    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
 
-    # # 上下文管理器
-    # ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
-
-    # # 初始化模型和分词器
-    # model, tokenizer = init_model()
+    # 初始化模型和分词器
+    model, tokenizer = init_model()
     
-    # # 创建数据集和数据加载器
-    # train_ds = SFTDataset(args.data_path, tokenizer, max_length=max_seq_len)
-    # train_loader = DataLoader(
-    #     train_ds,
-    #     batch_size=args.batch_size,
-    #     pin_memory=True,
-    #     drop_last=False,
-    #     shuffle=True,
-    #     num_workers=args.num_workers
-    # )
+    # 创建数据集和数据加载器
+    train_ds = SFTDataset(args.data_path, tokenizer, max_length=max_seq_len)
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=args.batch_size,
+        pin_memory=True,
+        drop_last=False,
+        shuffle=True,
+        num_workers=args.num_workers
+    )
 
-    # # 缩放器和优化器
-    # scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
-    # optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate)
+    # 缩放器和优化器
+    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
+    optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate)
 
-    # # 开始训练
-    # iter_per_epoch = len(train_loader)
-    # for epoch in range(args.epochs):
-    #     train_epoch(epoch)
+    # 开始训练
+    iter_per_epoch = len(train_loader)
+    for epoch in range(args.epochs):
+        train_epoch(epoch)

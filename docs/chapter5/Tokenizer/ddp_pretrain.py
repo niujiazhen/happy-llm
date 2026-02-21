@@ -17,7 +17,6 @@ from k_model import ModelConfig, Transformer
 from dataset import PretrainDataset
 
 import swanlab
-from modelscope import snapshot_download
 
 # 忽略警告信息
 warnings.filterwarnings('ignore')
@@ -217,110 +216,108 @@ def init_model():
 
 
 if __name__ == "__main__":
-    #SDK模型下载
-    model_dir = snapshot_download('kmno4zx/happy-llm-215M-base')
-    # # ==================== 命令行参数解析 ====================
-    # parser = argparse.ArgumentParser(description="Tiny-LLM Pretraining")
+    # ==================== 命令行参数解析 ====================
+    parser = argparse.ArgumentParser(description="Tiny-LLM Pretraining")
     
-    # # 基础训练参数
-    # parser.add_argument("--out_dir", type=str, default="base_model_215M", help="模型输出目录")
-    # parser.add_argument("--epochs", type=int, default=1, help="训练轮数")
-    # parser.add_argument("--batch_size", type=int, default=64, help="批次大小")
-    # parser.add_argument("--learning_rate", type=float, default=2e-4, help="学习率")
-    # parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu", help="训练设备")
-    # parser.add_argument("--dtype", type=str, default="bfloat16", help="数据类型")
+    # 基础训练参数
+    parser.add_argument("--out_dir", type=str, default="base_model_215M", help="模型输出目录")
+    parser.add_argument("--epochs", type=int, default=1, help="训练轮数")
+    parser.add_argument("--batch_size", type=int, default=64, help="批次大小")
+    parser.add_argument("--learning_rate", type=float, default=2e-4, help="学习率")
+    parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu", help="训练设备")
+    parser.add_argument("--dtype", type=str, default="bfloat16", help="数据类型")
     
-    # # 实验跟踪和数据加载参数
-    # parser.add_argument("--use_swanlab", action="store_true", help="是否使用SwanLab进行实验跟踪")
-    # parser.add_argument("--num_workers", type=int, default=8, help="数据加载的工作进程数")
-    # parser.add_argument("--data_path", type=str, default="./seq_monkey_datawhale.jsonl", help="训练数据路径")
+    # 实验跟踪和数据加载参数
+    parser.add_argument("--use_swanlab", action="store_true", help="是否使用SwanLab进行实验跟踪")
+    parser.add_argument("--num_workers", type=int, default=8, help="数据加载的工作进程数")
+    parser.add_argument("--data_path", type=str, default="./seq_monkey_datawhale.jsonl", help="训练数据路径")
     
-    # # 训练优化参数
-    # parser.add_argument("--accumulation_steps", type=int, default=8, help="梯度累积步数")
-    # parser.add_argument("--grad_clip", type=float, default=1.0, help="梯度裁剪阈值")
-    # parser.add_argument("--warmup_iters", type=int, default=0, help="学习率预热迭代次数")
+    # 训练优化参数
+    parser.add_argument("--accumulation_steps", type=int, default=8, help="梯度累积步数")
+    parser.add_argument("--grad_clip", type=float, default=1.0, help="梯度裁剪阈值")
+    parser.add_argument("--warmup_iters", type=int, default=0, help="学习率预热迭代次数")
     
-    # # 日志和保存参数
-    # parser.add_argument("--log_interval", type=int, default=100, help="日志记录间隔")
-    # parser.add_argument("--save_interval", type=int, default=1000, help="模型保存间隔")
+    # 日志和保存参数
+    parser.add_argument("--log_interval", type=int, default=100, help="日志记录间隔")
+    parser.add_argument("--save_interval", type=int, default=1000, help="模型保存间隔")
     
-    # # 多GPU训练参数
-    # parser.add_argument("--gpus", type=str, default='0,1,2,3,4,5,6,7', help="使用的GPU ID，用逗号分隔 (例如: '0,1,2')")
+    # 多GPU训练参数
+    parser.add_argument("--gpus", type=str, default='0,1,2,3,4,5,6,7', help="使用的GPU ID，用逗号分隔 (例如: '0,1,2')")
 
-    # args = parser.parse_args()
+    args = parser.parse_args()
 
-    # # ==================== GPU环境设置 ====================
-    # # 设置可见的GPU设备
-    # if args.gpus is not None:
-    #     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
-    #     # 自动设置主设备为第一个可用GPU
-    #     if torch.cuda.is_available():
-    #         args.device = "cuda:0"
-    #     else:
-    #         args.device = "cpu"
+    # ==================== GPU环境设置 ====================
+    # 设置可见的GPU设备
+    if args.gpus is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+        # 自动设置主设备为第一个可用GPU
+        if torch.cuda.is_available():
+            args.device = "cuda:0"
+        else:
+            args.device = "cpu"
 
-    # # ==================== 实验跟踪初始化 ====================
-    # if args.use_swanlab:
-    #     # 注意：使用前需要先登录 swanlab.login(api_key='your key')
-    #     run = swanlab.init(
-    #         project="Happy-LLM",  # 项目名称
-    #         experiment_name="Pretrain-215M",  # 实验名称
-    #         config=args,  # 保存所有超参数
-    #     )
+    # ==================== 实验跟踪初始化 ====================
+    if args.use_swanlab:
+        # 注意：使用前需要先登录 swanlab.login(api_key='your key')
+        run = swanlab.init(
+            project="Happy-LLM",  # 项目名称
+            experiment_name="Pretrain-215M",  # 实验名称
+            config=args,  # 保存所有超参数
+        )
 
-    # # ==================== 模型配置 ====================
-    # # 定义语言模型的配置参数
-    # lm_config = ModelConfig(
-    #     dim=1024,      # 模型维度
-    #     n_layers=18,   # Transformer层数
-    # )
+    # ==================== 模型配置 ====================
+    # 定义语言模型的配置参数
+    lm_config = ModelConfig(
+        dim=1024,      # 模型维度
+        n_layers=18,   # Transformer层数
+    )
 
-    # # ==================== 训练环境设置 ====================
-    # max_seq_len = lm_config.max_seq_len  # 最大序列长度
-    # args.save_dir = os.path.join(args.out_dir)  # 模型保存目录
+    # ==================== 训练环境设置 ====================
+    max_seq_len = lm_config.max_seq_len  # 最大序列长度
+    args.save_dir = os.path.join(args.out_dir)  # 模型保存目录
     
-    # # 创建必要的目录
-    # os.makedirs(args.out_dir, exist_ok=True)
+    # 创建必要的目录
+    os.makedirs(args.out_dir, exist_ok=True)
     
-    # # 设置随机种子以确保结果可复现
-    # torch.manual_seed(42)
+    # 设置随机种子以确保结果可复现
+    torch.manual_seed(42)
     
-    # # 确定设备类型（用于选择合适的上下文管理器）
-    # device_type = "cuda" if "cuda" in args.device else "cpu"
+    # 确定设备类型（用于选择合适的上下文管理器）
+    device_type = "cuda" if "cuda" in args.device else "cpu"
 
-    # # 设置混合精度训练的上下文管理器
-    # # CPU训练时使用nullcontext，GPU训练时使用autocast
-    # ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
+    # 设置混合精度训练的上下文管理器
+    # CPU训练时使用nullcontext，GPU训练时使用autocast
+    ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
 
-    # # ==================== 模型和数据初始化 ====================
-    # # 初始化模型和分词器
-    # model, tokenizer = init_model()
+    # ==================== 模型和数据初始化 ====================
+    # 初始化模型和分词器
+    model, tokenizer = init_model()
     
-    # # 创建训练数据集
-    # train_ds = PretrainDataset(args.data_path, tokenizer, max_length=max_seq_len)
+    # 创建训练数据集
+    train_ds = PretrainDataset(args.data_path, tokenizer, max_length=max_seq_len)
     
-    # # 创建数据加载器
-    # train_loader = DataLoader(
-    #     train_ds,
-    #     batch_size=args.batch_size,  # 批次大小
-    #     pin_memory=True,             # 将数据加载到固定内存中，加速GPU传输
-    #     drop_last=False,             # 不丢弃最后一个不完整的批次
-    #     shuffle=True,                # 随机打乱数据
-    #     num_workers=args.num_workers # 数据加载的并行工作进程数
-    # )
+    # 创建数据加载器
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=args.batch_size,  # 批次大小
+        pin_memory=True,             # 将数据加载到固定内存中，加速GPU传输
+        drop_last=False,             # 不丢弃最后一个不完整的批次
+        shuffle=True,                # 随机打乱数据
+        num_workers=args.num_workers # 数据加载的并行工作进程数
+    )
 
-    # # ==================== 优化器和训练组件初始化 ====================
-    # # 初始化混合精度训练的梯度缩放器
-    # # 只有在使用float16或bfloat16时才启用
-    # scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
+    # ==================== 优化器和训练组件初始化 ====================
+    # 初始化混合精度训练的梯度缩放器
+    # 只有在使用float16或bfloat16时才启用
+    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
     
-    # # 初始化Adam优化器
-    # optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    # 初始化Adam优化器
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
-    # # ==================== 开始训练 ====================
-    # # 计算每个epoch的迭代次数
-    # iter_per_epoch = len(train_loader)
+    # ==================== 开始训练 ====================
+    # 计算每个epoch的迭代次数
+    iter_per_epoch = len(train_loader)
     
-    # # 开始训练循环
-    # for epoch in range(args.epochs):
-    #     train_epoch(epoch)
+    # 开始训练循环
+    for epoch in range(args.epochs):
+        train_epoch(epoch)
