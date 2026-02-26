@@ -7,9 +7,8 @@ import math
 import os
 import sys
 from dataclasses import dataclass, field
-from torchdata.datapipes.iter import IterableWrapper
+# from torchdata.datapipes.iter import IterableWrapper
 from itertools import chain
-import deepspeed
 from typing import Optional,List,Dict
 from torch.utils.data import Dataset
 import json
@@ -250,7 +249,7 @@ def main():
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset= IterableWrapper(train_dataset),
+        train_dataset= train_dataset,
         tokenizer=tokenizer
     )
 

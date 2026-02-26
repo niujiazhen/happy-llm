@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 .DS_Store
 .obsidian
+
+# Model weights
+docs/chapter6/code/autodl-tmp/qwen-1.5b/
