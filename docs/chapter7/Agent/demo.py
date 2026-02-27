@@ -6,14 +6,14 @@ from openai import OpenAI
 
 if __name__ == "__main__":
     client = OpenAI(
-        api_key="your siliconflow api key",
+        api_key="sk-lrprbnmprcahjcspygzgrrpjgiqflsvtkdhnaxfzuequkwtv",
         base_url="https://api.siliconflow.cn/v1",
     )
 
     agent = Agent(
         client=client,
         model="Qwen/Qwen2.5-32B-Instruct",
-        tools=[get_current_datetime, search_wikipedia, get_current_temperature],
+        tools=[get_current_datetime, search_wikipedia, get_current_temperature,search_wikipedia],
     )
 
     while True:
